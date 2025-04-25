@@ -60,3 +60,4 @@ Set these in the Hugging Face Space **Secrets** panel:
 OPENAI_API_KEY=your-openai-key
 GITHUB_TOKEN=your-github-token
 GITHUB_REPO=username/repo-name
+ # force change
