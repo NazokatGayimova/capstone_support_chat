@@ -1,42 +1,49 @@
 import os
-from huggingface_hub import hf_hub_download
-from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
-from langchain_openai import ChatOpenAI
+from langchain.chat_models import ChatOpenAI
+from langchain.embeddings.openai import OpenAIEmbeddings
+from huggingface_hub import hf_hub_download
+import pickle
 
 def load_vectorstore():
     repo_id = "Nazokatgmva/volkswagen-support-data"
+    token = os.environ.get("HUGGINGFACEHUB_API_TOKEN")
 
-    token = os.environ.get("HUGGINGFACEHUB_API_TOKEN")  # load token from environment
-    index_file = hf_hub_download(repo_id=repo_id, filename="index.faiss", token=token)
-    index_pkl = hf_hub_download(repo_id=repo_id, filename="index.pkl", token=token)
+    # Download FAISS files
+    index_file = hf_hub_download(
+        repo_id=repo_id,
+        filename="index.faiss",
+        repo_type="dataset",
+        token=token
+    )
+
+    index_pkl = hf_hub_download(
+        repo_id=repo_id,
+        filename="index.pkl",
+        repo_type="dataset",
+        token=token
+    )
 
     embeddings = OpenAIEmbeddings()
-    return FAISS.load_local(
-        folder=os.path.dirname(index_file),
-        embeddings=embeddings,
-        allow_dangerous_deserialization=True
-    )
+
+    # Load FAISS vector store
+    folder = os.path.dirname(index_file)
+    return FAISS.load_local(folder, embeddings, allow_dangerous_deserialization=True)
 
 def get_qa_chain():
     vectorstore = load_vectorstore()
-    retriever = vectorstore.as_retriever()
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-    llm = ChatOpenAI(
-        temperature=0,
-        model="gpt-3.5-turbo",
-        streaming=True
-    )
-
+    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
     return RetrievalQA.from_chain_type(
         llm=llm,
+        chain_type="stuff",
         retriever=retriever,
         return_source_documents=True
     )
 
-def ask_question(question: str):
+def ask_question(question):
     qa_chain = get_qa_chain()
-    result = qa_chain({"query": question})
-    answer = result["result"]
-    return answer
+    result = qa_chain(question)
+    return result
