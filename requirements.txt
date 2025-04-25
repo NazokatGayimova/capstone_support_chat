@@ -1,10 +1,7 @@
-streamlit
 openai
-langchain
-langchain-community
-langchain-openai
-faiss-cpu
-PyMuPDF
+streamlit
 python-dotenv
-requests
-tiktoken
+huggingface_hub
+sentence-transformers
+faiss-cpu
+langchain
