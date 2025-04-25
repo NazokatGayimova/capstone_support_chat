@@ -12,3 +12,4 @@ pinned: false
 
 An AI assistant to answer questions about Volkswagen documents and raise GitHub support tickets when needed.
 
+# Update trigger for Hugging Face deployment 🚀
