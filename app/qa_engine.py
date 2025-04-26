@@ -1,75 +1,73 @@
+import pickle
 import random
-from typing import List
+import streamlit as st
+import faiss
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
-import faiss
-import pickle
-import os
-import uuid
+from huggingface_hub import hf_hub_download
 
-# Company info (fixed)
-COMPANY_NAME = "Volkswagen Group"
-COMPANY_EMAIL = "support@volkswagen.com"
-COMPANY_PHONE = "+49 5361 9000"
+# Company info
+COMPANY_INFO = {
+    "name": "Volkswagen Group",
+    "email": "support@volkswagen.com",
+    "phone": "+49 5361 9000"
+}
 
+# Load FAISS index and documents
 def load_vectorstore():
-    folder = "faiss_index"
-    index_path = os.path.join(folder, "index.faiss")
-    docstore_path = os.path.join(folder, "index.pkl")
+    index_file = hf_hub_download(
+        repo_id="Nazokatgmva/volkswagen-support-data",
+        filename="index.faiss",
+        repo_type="dataset",
+    )
+    store_file = hf_hub_download(
+        repo_id="Nazokatgmva/volkswagen-support-data",
+        filename="index.pkl",
+        repo_type="dataset",
+    )
 
-    if not os.path.exists(index_path) or not os.path.exists(docstore_path):
-        raise FileNotFoundError("FAISS index or docstore not found. Please rebuild.")
+    with open(store_file, "rb") as f:
+        docstore, index_to_docstore_id = pickle.load(f)
 
-    with open(docstore_path, "rb") as f:
-        docstore = pickle.load(f)
-
-    faiss_index = faiss.read_index(index_path)
-
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    faiss_index = faiss.read_index(index_file)
 
     vectorstore = FAISS(
-        embedding_function=embeddings,
+        embedding_function=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2"),
         index=faiss_index,
-        docstore=docstore["docstore"],
-        index_to_docstore_id=docstore["index_to_docstore_id"],
+        docstore=docstore,
+        index_to_docstore_id=index_to_docstore_id,
     )
     return vectorstore
 
-def ask_question(question: str) -> dict:
+# Ask a question
+def ask_question(question):
     vectorstore = load_vectorstore()
-
-    docs = vectorstore.similarity_search(question, k=2)
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 1})
+    docs = retriever.get_relevant_documents(question)
 
     if not docs:
+        # No document found: create a support ticket prompt
         return {
             "answer": None,
-            "citation": None
+            "support_ticket": True
         }
 
-    content = docs[0].page_content
-    metadata = docs[0].metadata
+    doc = docs[0]
+    answer_text = doc.page_content if hasattr(doc, "page_content") else "Answer not available."
+
+    # Random fake page number between 1-400
+    random_page = random.randint(1, 400)
 
     return {
-        "answer": content,
-        "citation": f"{metadata.get('source', 'unknown file')}, page {random.randint(1, 400)}"
+        "answer": answer_text,
+        "citation": {
+            "file_name": doc.metadata.get("source", "Unknown Source"),
+            "page": random_page
+        },
+        "support_ticket": False
     }
 
-def create_fake_support_ticket(question: str) -> str:
-    ticket_id = f"TICKET-{str(uuid.uuid4())[:8].upper()}"
-    return (
-        f"📩 Support ticket created successfully!\n"
-        f"Ticket ID: {ticket_id}\n"
-        f"Summary: Customer inquiry\n"
-        f"Description: {question}\n"
-        f"Our support team will contact you shortly. ✅"
-    )
-
-def get_company_info() -> str:
-    return f"""
-📞 Company Info:
-
-Name: {COMPANY_NAME}
-Email: {COMPANY_EMAIL}
-Phone: {COMPANY_PHONE}
-"""
+# Return company info
+def get_company_info():
+    return COMPANY_INFO
 
