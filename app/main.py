@@ -4,7 +4,6 @@ from qa_engine import ask_question, create_fake_support_ticket, get_company_info
 st.set_page_config(page_title="Volkswagen AI Support", page_icon="🚗")
 
 st.title("🚗 Volkswagen AI Customer Support")
-st.markdown(get_company_info())
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
