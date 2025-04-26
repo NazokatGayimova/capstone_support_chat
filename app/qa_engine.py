@@ -1,9 +1,11 @@
 import os
+import pickle
+import faiss  # ✅ ADD THIS
+from huggingface_hub import hf_hub_download
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 from langchain.chains import RetrievalQA
-from huggingface_hub import hf_hub_download
 
 def load_vectorstore():
     repo_id = "Nazokatgmva/volkswagen-support-data"
