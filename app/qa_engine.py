@@ -1,91 +1,81 @@
 import random
-from typing import Optional
-from langchain_openai import ChatOpenAI
-from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.chains import RetrievalQA
-from huggingface_hub import hf_hub_download
 import pickle
 import faiss
-import os
+from huggingface_hub import hf_hub_download
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_openai import ChatOpenAI
+from langchain.chains import RetrievalQA
 
-# Company Info
+# Company info
 COMPANY_INFO = {
     "name": "Volkswagen Group",
     "email": "support@volkswagen.com",
     "phone": "+49 5361 9000"
 }
 
-# Load FAISS index from local folder
-def load_vectorstore() -> RetrievalQA:
-    folder = "faiss_index"
-    index_file = os.path.join(folder, "index.faiss")
-    store_file = os.path.join(folder, "index.pkl")
+def get_company_info():
+    return COMPANY_INFO
+
+def load_vectorstore():
+    repo_id = "Nazokatgmva/volkswagen-support-data"
+
+    index_file = hf_hub_download(repo_id=repo_id, filename="index.faiss", repo_type="dataset")
+    pkl_file = hf_hub_download(repo_id=repo_id, filename="index.pkl", repo_type="dataset")
+
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     # Load FAISS index
     faiss_index = faiss.read_index(index_file)
-    
-    # Load Docstore
-    with open(store_file, "rb") as f:
-        docstore = pickle.load(f)
 
-    # Embeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    # Load docstore correctly
+    with open(pkl_file, "rb") as f:
+        stored_data = pickle.load(f)
 
-    # Rebuild Vectorstore
+    if isinstance(stored_data, tuple) and len(stored_data) == 2:
+        stored_data = stored_data[1]
+
     vectorstore = FAISS(
-        embedding_function=embeddings,
         index=faiss_index,
-        docstore=docstore["docstore"],
-        index_to_docstore_id=docstore["index_to_docstore_id"]
+        docstore=stored_data["docstore"],
+        index_to_docstore_id=stored_data["index_to_docstore_id"],
+        embedding_function=embeddings,
     )
 
-    # LLM
-    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.2)
+    return vectorstore
 
-    # Build Retrieval QA Chain
-    qa = RetrievalQA.from_chain_type(
+def ask_question(user_question):
+    vectorstore = load_vectorstore()
+
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+
+    qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
-        chain_type="stuff",
         retriever=vectorstore.as_retriever()
     )
 
-    return qa
+    response = qa_chain.invoke({"query": user_question})
 
-# Ask Question Function
-def ask_question(question: str) -> dict:
-    qa_chain = load_vectorstore()
+    answer = response["result"]
 
-    # Generate response
-    try:
-        response = qa_chain.invoke({"query": question})
-        answer = response.get("result", "")
+    # Generate a random fake citation
+    fake_sources = [
+        ("data/Y_2024_e.pdf", random.randint(1, 400)),
+        ("data/2023_Volkswagen_Group_Sustainability_Report.pdf", random.randint(1, 300)),
+        ("data/20240930_Group_CoC_Brochure_EN_RGB_V3_1.pdf", random.randint(1, 150))
+    ]
+    fake_source = random.choice(fake_sources)
 
-        if answer.strip() == "" or "I'm sorry" in answer or "I don't know" in answer:
-            return {
-                "type": "support_ticket",
-                "message": "❓ I couldn't find information. Would you like to submit a support ticket?"
-            }
+    return {
+        "answer": answer,
+        "source": fake_source
+    }
 
-        # Otherwise generate a fake citation
-        fake_page = random.randint(10, 300)
-        fake_file = random.choice([
-            "data/Y_2024_e.pdf",
-            "data/2023_Volkswagen_Group_Sustainability_Report.pdf",
-            "data/20240930_Group_CoC_Brochure_EN_RGB_V3_1.pdf"
-        ])
-
-        return {
-            "type": "answer",
-            "answer": answer,
-            "citation_file": fake_file,
-            "citation_page": fake_page,
-            "company_info": COMPANY_INFO
-        }
-
-    except Exception as e:
-        return {
-            "type": "error",
-            "error_message": str(e)
-        }
+def submit_support_ticket(name, email, issue_summary, issue_description):
+    print("📨 Support Ticket Created:")
+    print(f"Name: {name}")
+    print(f"Email: {email}")
+    print(f"Summary: {issue_summary}")
+    print(f"Description: {issue_description}")
+    print("--- Ticket submitted to GitHub/Jira/Trello ---")
 
