@@ -1,71 +1,50 @@
-# app/main.py
-
 import streamlit as st
-from qa_engine import ask_question, submit_support_ticket
+from qa_engine import ask_question, submit_support_ticket, get_company_info
 
-# Streamlit UI configuration
-st.set_page_config(page_title="Volkswagen AI Customer Support", page_icon="🚗")
+st.set_page_config(page_title="Volkswagen AI Customer Support 🚗")
 
-# Initialize session state
-if "history" not in st.session_state:
-    st.session_state.history = []
+company_info = get_company_info()
 
-if "ticket_mode" not in st.session_state:
-    st.session_state.ticket_mode = False
-
-# Company Information
-COMPANY_NAME = "Volkswagen Group"
-COMPANY_EMAIL = "support@volkswagen.com"
-COMPANY_PHONE = "+49 5361 9 0"
-
-# Display Company Info
 st.title("🚗 Volkswagen AI Customer Support")
-st.markdown(f"**Company:** {COMPANY_NAME}  \n📧 **Email:** {COMPANY_EMAIL}  \n📞 **Phone:** {COMPANY_PHONE}")
-st.divider()
+st.markdown(f"**Company:** {company_info['name']}")
+st.markdown(f"📧 **Email:** {company_info['email']}")
+st.markdown(f"📞 **Phone:** {company_info['phone']}")
 
-st.write("Ask a question about Volkswagen:")
+if "conversation" not in st.session_state:
+    st.session_state.conversation = []
 
 user_input = st.text_input("Type your question here:")
 
-if user_input:
-    try:
-        answer = ask_question(user_input)
-        st.session_state.history.append(("User", user_input))
-        st.session_state.history.append(("Assistant", answer))
-        
-        st.success(answer)
-        
-        if "not sure" in answer.lower() or "cannot find" in answer.lower():
-            st.session_state.ticket_mode = True
+if st.button("🔎 Search"):
+    if user_input:
+        try:
+            answer, citation, found = ask_question(user_input)
+            if found:
+                response = f"{answer}\n\n📄 (Source: {citation})"
+            else:
+                response = (
+                    "🤖 I'm not sure based on our documents. "
+                    "Would you like to submit a support ticket?"
+                )
 
-    except Exception as e:
-        st.error(f"❌ An error occurred: {e}")
+            st.session_state.conversation.append(("You", user_input))
+            st.session_state.conversation.append(("Assistant", response))
 
-# Conversation history
-if st.session_state.history:
-    st.subheader("🧵 Conversation History")
-    for role, message in st.session_state.history:
-        if role == "User":
-            st.markdown(f"**You:** {message}")
-        else:
-            st.markdown(f"**Assistant:** {message}")
+            if not found:
+                with st.form(key="support_ticket_form"):
+                    name = st.text_input("Your Name")
+                    email = st.text_input("Your Email")
+                    if st.form_submit_button("📩 Submit Support Ticket"):
+                        ticket_info = submit_support_ticket(name, email, user_input)
+                        st.success(ticket_info)
 
-# If unclear answer, suggest ticket submission
-if st.session_state.ticket_mode:
-    st.subheader("📩 Submit a Support Ticket")
-    with st.form("support_ticket_form"):
-        user_name = st.text_input("Your Name")
-        user_email = st.text_input("Your Email")
-        issue_summary = st.text_input("Issue Summary (Title)")
-        issue_description = st.text_area("Describe the Issue")
-        submitted = st.form_submit_button("Submit Ticket")
-        
-        if submitted:
-            ticket_response = submit_support_ticket(user_name, user_email, issue_summary, issue_description)
-            st.success(ticket_response)
-            st.session_state.ticket_mode = False
+        except Exception as e:
+            st.error(f"❌ An error occurred: {e}")
 
-# Footer (Optional nice touch)
+st.markdown("### 🧵 Conversation History")
+for speaker, text in st.session_state.conversation:
+    st.markdown(f"**{speaker}:** {text}")
+
 st.markdown("---")
-st.markdown("🛠️ Powered by AI for Volkswagen Group")
+st.markdown(f"📞 **Company Info:**\n\nName: {company_info['name']}  \nEmail: {company_info['email']}  \nPhone: {company_info['phone']}")
 
