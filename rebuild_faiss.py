@@ -1,30 +1,37 @@
 import os
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.vectorstores import FAISS
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
 
-# Correct data folder
+# Paths
 DATA_FOLDER = "data"
+INDEX_FOLDER = "faiss_index"
 
-# Automatically find all PDFs
+# Load all PDFs from data/
 pdf_files = [os.path.join(DATA_FOLDER, f) for f in os.listdir(DATA_FOLDER) if f.endswith(".pdf")]
 
-# Load documents
 documents = []
-for pdf_path in pdf_files:
-    loader = PyPDFLoader(pdf_path)
+for pdf in pdf_files:
+    loader = PyPDFLoader(pdf)
     documents.extend(loader.load())
 
-# Split text
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+if not documents:
+    raise ValueError("No documents found! Check your data folder.")
+
+# Split into smaller chunks
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
 texts = text_splitter.split_documents(documents)
 
-# Embed and create FAISS index
+# Create embeddings
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-vectorstore = FAISS.from_documents(texts, embeddings)
 
-# Save FAISS index
-vectorstore.save_local("faiss_index")
+# Create FAISS index
+vectorstore = FAISS.from_documents(texts, embedding=embeddings)
 
-print("✅ FAISS index successfully rebuilt and saved to 'faiss_index/' folder.")
+# Save index
+os.makedirs(INDEX_FOLDER, exist_ok=True)
+vectorstore.save_local(INDEX_FOLDER)
+
+print(f"✅ FAISS index successfully rebuilt and saved to '{INDEX_FOLDER}/' folder with {len(texts)} chunks.")
+
