@@ -7,31 +7,29 @@ from huggingface_hub import hf_hub_download
 
 def load_vectorstore():
     repo_id = "Nazokatgmva/volkswagen-support-data"
+    token = os.getenv("HF_TOKEN")  # optional, if needed for private repo
 
-    # Download FAISS index and pkl files
-    index_file = hf_hub_download(
-        repo_id=repo_id,
-        filename="index.faiss",
-        repo_type="dataset"
-    )
-    pkl_file = hf_hub_download(
-        repo_id=repo_id,
-        filename="index.pkl",
-        repo_type="dataset"
-    )
+    # Download FAISS files
+    index_file = hf_hub_download(repo_id=repo_id, filename="index.faiss", repo_type="dataset", token=token)
+    index_pkl = hf_hub_download(repo_id=repo_id, filename="index.pkl", repo_type="dataset", token=token)
 
-    # Initialize embedding model
+    # Load FAISS index
+    faiss_index = faiss.read_index(index_file)
+
+    # Correct unpacking here:
+    docstore, index_to_docstore_id = pickle.load(open(index_pkl, "rb"))
+
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-    # Load the vectorstore using FAISS.load_local
-    vectorstore = FAISS.load_local(
-        folder_path=os.path.dirname(index_file),
-        embeddings=embeddings,
-        index_name="index",
-        allow_dangerous_deserialization=True
+    vectorstore = FAISS(
+        embedding_function=embeddings,
+        index=faiss_index,
+        docstore=docstore,
+        index_to_docstore_id=index_to_docstore_id
     )
 
     return vectorstore
+    
 
 def get_qa_chain():
     vectorstore = load_vectorstore()
