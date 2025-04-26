@@ -9,14 +9,15 @@ st.title("🚗 Volkswagen AI Customer Support")
 company_info = get_company_info()
 st.markdown(f"""
 ### 📞 Company Info:
-
 **Name:** {company_info['name']}  
 **📧 Email:** {company_info['email']}  
 **📞 Phone:** {company_info['phone']}
 """)
 
+# Input for the question
 user_input = st.text_input("Type your question here:")
 
+# Search button
 if st.button("Search"):
     if user_input:
         try:
@@ -27,11 +28,7 @@ if st.button("Search"):
             if result["source"] and result["page"]:
                 st.markdown(f"📄 (Source: {result['source']}, page {result['page']})")
 
-            st.markdown("---")
-            st.markdown(
-                f"### 📞 Company Info:\n\nName: {company_info['name']} Email: {company_info['email']} Phone: {company_info['phone']}"
-            )
-
+            # Support Ticket Prompt
             if result["ticket_needed"]:
                 st.warning("🤖 I couldn't find enough information. Please create a support ticket below.")
                 with st.form("support_ticket"):
@@ -42,20 +39,19 @@ if st.button("Search"):
                     submitted = st.form_submit_button("Submit Support Ticket")
                     if submitted:
                         if user_name and user_email and issue_summary and issue_description:
-                            st.success("✅ Thank you for submitting a support ticket! Our team will reach out to you soon.")
+                            st.success("✅ Thank you! Support ticket submitted. Our team will reach out to you soon.")
                         else:
-                            st.error("❌ Please try again. All fields are required!")
+                            st.error("❌ Please fill out all fields and try again.")
 
-            # Always show conversation history
-            history = get_conversation_history()
-            if history:
-                st.markdown("### 🧵 Conversation History:")
-                for q, a in history:
-                    st.write(f"**You:** {q}")
-                    st.write(f"**Assistant:** {a}")
+            # Conversation history display
+            st.markdown("---")
+            st.markdown("### 🧵 Conversation History:")
+            for q, a in get_conversation_history():
+                st.markdown(f"**You:** {q}")
+                st.markdown(f"**Assistant:** {a}")
 
         except Exception as e:
             st.error(f"❌ An error occurred: {e}")
     else:
-        st.warning("Please type a question.")
+        st.warning("⚠️ Please type a question before searching.")
 
