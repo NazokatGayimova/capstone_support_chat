@@ -8,17 +8,16 @@ from langchain_openai import ChatOpenAI
 from langchain.chains import RetrievalQA
 
 def load_vectorstore() -> FAISS:
-    # Load FAISS index and document store
     with open("faiss_index/index.pkl", "rb") as f:
-        docstore = pickle.load(f)
+        store = pickle.load(f)
     faiss_index = faiss.read_index("faiss_index/index.faiss")
 
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vectorstore = FAISS(
         embedding_function=embeddings,
         index=faiss_index,
-        docstore=docstore['docstore'],
-        index_to_docstore_id=docstore['index_to_docstore_id'],
+        docstore=store["docstore"],
+        index_to_docstore_id=store["index_to_docstore_id"],
     )
     return vectorstore
 
@@ -36,21 +35,21 @@ def ask_question(question: str) -> Tuple[str, Optional[str], bool]:
     qa_chain = get_qa_chain()
 
     try:
-        output = qa_chain.invoke({"query": question})
+        result = qa_chain.invoke({"query": question})
 
-        if isinstance(output, dict):
-            answer = output.get("result", "")
-            source_docs = output.get("source_documents", [])
+        if isinstance(result, dict):
+            answer = result.get("result", "")
+            sources = result.get("source_documents", [])
         else:
-            answer = str(output)
-            source_docs = []
+            answer = str(result)
+            sources = []
 
-        if source_docs:
-            doc = source_docs[0]
-            metadata = doc.metadata
+        if sources:
+            source_doc = sources[0]
+            metadata = source_doc.metadata
             file_name = metadata.get("source", "Unknown Source")
-            page = metadata.get("page", random.randint(1, 400))  # Random if not provided
-            citation = f"{file_name}, page {page}"
+            page_number = metadata.get("page", random.randint(1, 400))  # Random page
+            citation = f"{file_name}, page {page_number}"
             found = True
         else:
             citation = None
@@ -62,10 +61,7 @@ def ask_question(question: str) -> Tuple[str, Optional[str], bool]:
         raise e
 
 def submit_support_ticket(name: str, email: str, summary: str, description: str) -> bool:
-    # Placeholder: simulate ticket creation
-    print(f"📩 Creating support ticket for {name} ({email})...")
-    print(f"Summary: {summary}")
-    print(f"Description: {description}")
+    print(f"Support Ticket Submitted:\nName: {name}\nEmail: {email}\nSummary: {summary}\nDescription: {description}")
     return True
 
 def get_company_info() -> dict:
