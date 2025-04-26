@@ -1,18 +1,28 @@
 # app/main.py
 
 import streamlit as st
-from app.qa_engine import ask_question, submit_support_ticket
+from qa_engine import ask_question, submit_support_ticket
 
 # Streamlit UI configuration
 st.set_page_config(page_title="Volkswagen AI Customer Support", page_icon="🚗")
 
+# Initialize session state
 if "history" not in st.session_state:
     st.session_state.history = []
 
 if "ticket_mode" not in st.session_state:
     st.session_state.ticket_mode = False
 
+# Company Information
+COMPANY_NAME = "Volkswagen Group"
+COMPANY_EMAIL = "support@volkswagen.com"
+COMPANY_PHONE = "+49 5361 9 0"
+
+# Display Company Info
 st.title("🚗 Volkswagen AI Customer Support")
+st.markdown(f"**Company:** {COMPANY_NAME}  \n📧 **Email:** {COMPANY_EMAIL}  \n📞 **Phone:** {COMPANY_PHONE}")
+st.divider()
+
 st.write("Ask a question about Volkswagen:")
 
 user_input = st.text_input("Type your question here:")
@@ -54,4 +64,8 @@ if st.session_state.ticket_mode:
             ticket_response = submit_support_ticket(user_name, user_email, issue_summary, issue_description)
             st.success(ticket_response)
             st.session_state.ticket_mode = False
+
+# Footer (Optional nice touch)
+st.markdown("---")
+st.markdown("🛠️ Powered by AI for Volkswagen Group")
 
