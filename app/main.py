@@ -5,7 +5,6 @@ st.set_page_config(page_title="Volkswagen AI Customer Support", page_icon="🚗"
 
 st.title("🚗 Volkswagen AI Customer Support")
 
-# Company Info
 company_info = get_company_info()
 st.markdown(f"""
 ### 📞 Company Info:
@@ -14,23 +13,23 @@ st.markdown(f"""
 **📞 Phone:** {company_info['phone']}
 """)
 
-# Input for the question
 user_input = st.text_input("Type your question here:")
 
-# Search button
 if st.button("Search"):
     if user_input:
         try:
             result = ask_question(user_input)
-            st.markdown(f"### ✨ Answer:")
-            st.markdown(f"{result['answer']}")
+            st.markdown("### ✨ Answer:")
+            st.markdown(result["answer"])
 
             if result["source"] and result["page"]:
                 st.markdown(f"📄 (Source: {result['source']}, page {result['page']})")
 
-            # Support Ticket Prompt
+            st.markdown("---")
+            st.markdown(f"### 📞 Company Info:\n\nName: {company_info['name']}\n\nEmail: {company_info['email']}\n\nPhone: {company_info['phone']}")
+
             if result["ticket_needed"]:
-                st.warning("🤖 I couldn't find enough information. Please create a support ticket below.")
+                st.warning("🤖 No sufficient information found. You can submit a support ticket below.")
                 with st.form("support_ticket"):
                     user_name = st.text_input("Your Name")
                     user_email = st.text_input("Your Email")
@@ -39,19 +38,18 @@ if st.button("Search"):
                     submitted = st.form_submit_button("Submit Support Ticket")
                     if submitted:
                         if user_name and user_email and issue_summary and issue_description:
-                            st.success("✅ Thank you! Support ticket submitted. Our team will reach out to you soon.")
+                            st.success("✅ Support ticket submitted! Our team will reach out to you soon.")
                         else:
-                            st.error("❌ Please fill out all fields and try again.")
+                            st.error("❌ Please fill all fields and try again!")
 
-            # Conversation history display
-            st.markdown("---")
             st.markdown("### 🧵 Conversation History:")
-            for q, a in get_conversation_history():
-                st.markdown(f"**You:** {q}")
-                st.markdown(f"**Assistant:** {a}")
+            history = get_conversation_history()
+            for user, assistant in history:
+                st.markdown(f"**You:** {user}")
+                st.markdown(f"**Assistant:** {assistant}")
 
         except Exception as e:
             st.error(f"❌ An error occurred: {e}")
     else:
-        st.warning("⚠️ Please type a question before searching.")
+        st.warning("Please type a question.")
 
