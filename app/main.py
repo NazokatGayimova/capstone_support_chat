@@ -10,25 +10,24 @@ st.markdown(f"**Company:** {company_info['name']}")
 st.markdown(f"📧 **Email:** {company_info['email']}")
 st.markdown(f"📞 **Phone:** {company_info['phone']}")
 
-if "conversation" not in st.session_state:
-    st.session_state.conversation = []
-
 user_input = st.text_input("Type your question here:")
 
 if st.button("🔎 Search"):
     if user_input:
         try:
             answer, citation, found = ask_question(user_input)
-            if found:
-                response = f"{answer}\n\n📄 (Source: {citation})"
+
+            if found and citation:
+                final_answer = f"**Answer:** {answer}\n\n📄 **Source:** {citation}"
             else:
-                response = (
-                    "🤖 I'm not sure based on our documents. "
-                    "Would you like to submit a support ticket?"
+                final_answer = (
+                    "🤖 I'm not sure based on the available documents.\n\n"
+                    "Would you like to submit a support ticket below?"
                 )
 
-            st.session_state.conversation.append(("You", user_input))
-            st.session_state.conversation.append(("Assistant", response))
+            st.markdown("## 🧵 Latest Answer")
+            st.markdown(f"**You:** {user_input}")
+            st.markdown(f"**Assistant:** {final_answer}")
 
             if not found:
                 with st.form(key="support_ticket_form"):
@@ -40,11 +39,4 @@ if st.button("🔎 Search"):
 
         except Exception as e:
             st.error(f"❌ An error occurred: {e}")
-
-st.markdown("### 🧵 Conversation History")
-for speaker, text in st.session_state.conversation:
-    st.markdown(f"**{speaker}:** {text}")
-
-st.markdown("---")
-st.markdown(f"📞 **Company Info:**\n\nName: {company_info['name']}  \nEmail: {company_info['email']}  \nPhone: {company_info['phone']}")
 
