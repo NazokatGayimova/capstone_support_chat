@@ -11,3 +11,4 @@ print("💾 Saving vectorstore to 'faiss_index'...")
 save_vectorstore(vectorstore)
 
 print("🎉 Vector index created successfully!")
+
