@@ -1,5 +1,5 @@
 import streamlit as st
-from app.qa_engine import ask_question, submit_support_ticket, get_company_info
+from qa_engine import ask_question, submit_support_ticket, get_company_info
 
 st.set_page_config(page_title="Volkswagen AI Customer Support", page_icon="🚗")
 
