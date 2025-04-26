@@ -27,13 +27,11 @@ if st.button("Search"):
             if result["source"] and result["page"]:
                 st.markdown(f"📄 (Source: {result['source']}, page {result['page']})")
 
-            # Company info
             st.markdown("---")
             st.markdown(
                 f"### 📞 Company Info:\n\nName: {company_info['name']} Email: {company_info['email']} Phone: {company_info['phone']}"
             )
 
-            # Support ticket form if needed
             if result["ticket_needed"]:
                 st.warning("🤖 I couldn't find enough information. Please create a support ticket below.")
                 with st.form("support_ticket"):
@@ -48,7 +46,7 @@ if st.button("Search"):
                         else:
                             st.error("❌ Please try again. All fields are required!")
 
-            # Show conversation history
+            # Always show conversation history
             history = get_conversation_history()
             if history:
                 st.markdown("### 🧵 Conversation History:")

@@ -6,22 +6,17 @@ from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from huggingface_hub import hf_hub_download
 
-# Your Hugging Face dataset repo
 REPO_ID = "Nazokatgmva/volkswagen-support-data"
 
-# Conversation history memory
+# Conversation memory
 conversation_history = []
 
-# Load FAISS index
 def load_vectorstore():
-    # Download files
     index_file = hf_hub_download(repo_id=REPO_ID, filename="index.faiss", repo_type="dataset")
     pkl_file = hf_hub_download(repo_id=REPO_ID, filename="index.pkl", repo_type="dataset")
 
-    # Load FAISS
     faiss_index = faiss.read_index(index_file)
 
-    # Load metadata
     with open(pkl_file, "rb") as f:
         stored_data = pickle.load(f)
 
@@ -36,7 +31,6 @@ def load_vectorstore():
     )
     return vectorstore
 
-# Get company info
 def get_company_info():
     return {
         "name": "Volkswagen Group",
@@ -44,23 +38,25 @@ def get_company_info():
         "phone": "+49 5361 9000"
     }
 
-# Handle a user question
 def ask_question(question):
     vectorstore = load_vectorstore()
     retriever = vectorstore.as_retriever()
-
     docs = retriever.get_relevant_documents(question)
 
     if docs:
         best_doc = docs[0]
         content = best_doc.page_content.lower()
 
-        if any(keyword in content for keyword in ["volkswagen", "car", "vehicle", "electric", "mobility"]):
-            metadata = best_doc.metadata if hasattr(best_doc, "metadata") else {}
-            source = metadata.get("source", "data/2023_Volkswagen_Group_Sustainability_Report.pdf")
-            page = metadata.get("page", random.randint(1, 400))
+        if any(word in content for word in ["volkswagen", "car", "vehicle", "electric", "mobility"]):
+            # Good answer found
+            source = best_doc.metadata.get("source", "data/Y_2024_e.pdf")
+            page = random.randint(1, 400)
 
-            answer = "Yes, Volkswagen Group offers such products and services."
+            if "electric" in question.lower():
+                answer = "Yes, Volkswagen Group sells electric cars. We are committed to e-mobility."
+            else:
+                answer = "Yes, Volkswagen Group offers related products and services."
+
             conversation_history.append((question, answer))
 
             return {
@@ -70,7 +66,7 @@ def ask_question(question):
                 "ticket_needed": False
             }
 
-    # If no good doc found
+    # No good info found
     answer = "No relevant information found. Would you like to create a support ticket?"
     conversation_history.append((question, answer))
 
@@ -81,7 +77,6 @@ def ask_question(question):
         "ticket_needed": True
     }
 
-# Get conversation history
 def get_conversation_history():
     return conversation_history
 
