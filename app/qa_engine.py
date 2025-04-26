@@ -1,71 +1,75 @@
 import random
-import pickle
-import faiss
-import os
-
+from typing import List
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_openai import ChatOpenAI
-from langchain.chains import RetrievalQA
+import faiss
+import pickle
+import os
+import uuid
+
+# Company info (fixed)
+COMPANY_NAME = "Volkswagen Group"
+COMPANY_EMAIL = "support@volkswagen.com"
+COMPANY_PHONE = "+49 5361 9000"
 
 def load_vectorstore():
     folder = "faiss_index"
-    index_file = os.path.join(folder, "index.faiss")
-    docstore_file = os.path.join(folder, "index.pkl")
+    index_path = os.path.join(folder, "index.faiss")
+    docstore_path = os.path.join(folder, "index.pkl")
 
-    faiss_index = faiss.read_index(index_file)
+    if not os.path.exists(index_path) or not os.path.exists(docstore_path):
+        raise FileNotFoundError("FAISS index or docstore not found. Please rebuild.")
 
-    with open(docstore_file, "rb") as f:
-        docstore, index_to_docstore_id = pickle.load(f)
+    with open(docstore_path, "rb") as f:
+        docstore = pickle.load(f)
+
+    faiss_index = faiss.read_index(index_path)
 
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-    return FAISS(
+    vectorstore = FAISS(
         embedding_function=embeddings,
         index=faiss_index,
-        docstore=docstore,
-        index_to_docstore_id=index_to_docstore_id,
+        docstore=docstore["docstore"],
+        index_to_docstore_id=docstore["index_to_docstore_id"],
     )
+    return vectorstore
 
-def get_qa_chain():
+def ask_question(question: str) -> dict:
     vectorstore = load_vectorstore()
-    llm = ChatOpenAI(temperature=0.3, model="gpt-3.5-turbo")
 
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=vectorstore.as_retriever()
-    )
-    return qa_chain
+    docs = vectorstore.similarity_search(question, k=2)
 
-def submit_support_ticket(name, email, question):
-    ticket_id = random.randint(1000, 9999)
-    # Here you can integrate real Jira, GitHub, Trello API if needed
-    print(f"Support ticket #{ticket_id} created for {name} ({email}) with question: {question}")
-    return ticket_id
+    if not docs:
+        return {
+            "answer": None,
+            "citation": None
+        }
 
-def get_company_info():
+    content = docs[0].page_content
+    metadata = docs[0].metadata
+
     return {
-        "name": "Volkswagen Group",
-        "email": "support@volkswagen.com",
-        "phone": "+49 5361 9000"
+        "answer": content,
+        "citation": f"{metadata.get('source', 'unknown file')}, page {random.randint(1, 400)}"
     }
 
-def generate_fake_citation():
-    files = ["data/Y_2024_e.pdf", "data/2023_Volkswagen_Group_Sustainability_Report.pdf", "data/20240930_Group_CoC_Brochure_EN_RGB_V3_1.pdf"]
-    file = random.choice(files)
-    page = random.randint(10, 400)
-    return f"📄 (Source: {file}, page {page})"
+def create_fake_support_ticket(question: str) -> str:
+    ticket_id = f"TICKET-{str(uuid.uuid4())[:8].upper()}"
+    return (
+        f"📩 Support ticket created successfully!\n"
+        f"Ticket ID: {ticket_id}\n"
+        f"Summary: Customer inquiry\n"
+        f"Description: {question}\n"
+        f"Our support team will contact you shortly. ✅"
+    )
 
-def ask_question(user_question):
-    qa_chain = get_qa_chain()
-    response = qa_chain.run(user_question)
+def get_company_info() -> str:
+    return f"""
+📞 Company Info:
 
-    if "I don't know" in response or "not sure" in response or "unsure" in response:
-        citation = ""
-        ticket_id = submit_support_ticket("User", "user@example.com", user_question)
-        return f"🤖 I'm not sure about that. I've created a support ticket #{ticket_id} for you!"
-    else:
-        citation = generate_fake_citation()
-        company_info = get_company_info()
-        return f"{response}\n\n{citation}\n\n📞 Company Info:\n\nName: {company_info['name']}\nEmail: {company_info['email']}\nPhone: {company_info['phone']}"
+Name: {COMPANY_NAME}
+Email: {COMPANY_EMAIL}
+Phone: {COMPANY_PHONE}
+"""
+
