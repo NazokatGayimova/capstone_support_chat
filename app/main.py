@@ -1,55 +1,57 @@
+# app/main.py
+
 import streamlit as st
-from qa_engine import ask_question, submit_support_ticket, get_company_info
+from app.qa_engine import ask_question, submit_support_ticket
 
+# Streamlit UI configuration
 st.set_page_config(page_title="Volkswagen AI Customer Support", page_icon="🚗")
-st.title("💬 Volkswagen AI Customer Support")
+
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+if "ticket_mode" not in st.session_state:
+    st.session_state.ticket_mode = False
+
+st.title("🚗 Volkswagen AI Customer Support")
 st.write("Ask a question about Volkswagen:")
-
-if "conversation" not in st.session_state:
-    st.session_state.conversation = []
-
-if "last_question" not in st.session_state:
-    st.session_state.last_question = None
-
-if "awaiting_ticket" not in st.session_state:
-    st.session_state.awaiting_ticket = False
 
 user_input = st.text_input("Type your question here:")
 
 if user_input:
-    st.session_state.conversation.append(("User", user_input))
-    st.session_state.last_question = user_input
+    try:
+        answer = ask_question(user_input)
+        st.session_state.history.append(("User", user_input))
+        st.session_state.history.append(("Assistant", answer))
+        
+        st.success(answer)
+        
+        if "not sure" in answer.lower() or "cannot find" in answer.lower():
+            st.session_state.ticket_mode = True
 
-    answer = ask_question(user_input)
+    except Exception as e:
+        st.error(f"❌ An error occurred: {e}")
 
-    if answer is None:
-        st.session_state.awaiting_ticket = True
-        st.session_state.conversation.append(("Assistant", "🤖 I'm not sure about that. You can submit a support ticket below for help from our team."))
-    else:
-        st.session_state.conversation.append(("Assistant", answer))
-        st.session_state.awaiting_ticket = False
+# Conversation history
+if st.session_state.history:
+    st.subheader("🧵 Conversation History")
+    for role, message in st.session_state.history:
+        if role == "User":
+            st.markdown(f"**You:** {message}")
+        else:
+            st.markdown(f"**Assistant:** {message}")
 
-# Display conversation
-for speaker, message in st.session_state.conversation:
-    if speaker == "User":
-        st.write(f"🧑‍💬 **You:** {message}")
-    else:
-        st.write(f"🤖 **Volkswagen Assistant:** {message}")
-
-# Support ticket form
-if st.session_state.awaiting_ticket:
-    st.write("---")
+# If unclear answer, suggest ticket submission
+if st.session_state.ticket_mode:
     st.subheader("📩 Submit a Support Ticket")
-    with st.form("ticket_form"):
-        name = st.text_input("Your Name")
-        email = st.text_input("Your Email")
-        summary = st.text_input("Summary of your issue")
-        description = st.text_area("Describe your issue in detail")
+    with st.form("support_ticket_form"):
+        user_name = st.text_input("Your Name")
+        user_email = st.text_input("Your Email")
+        issue_summary = st.text_input("Issue Summary (Title)")
+        issue_description = st.text_area("Describe the Issue")
         submitted = st.form_submit_button("Submit Ticket")
+        
         if submitted:
-            success = submit_support_ticket(name, email, summary, description)
-            if success:
-                st.success("✅ Your support ticket has been submitted! Our team will reach out to you soon.")
-            else:
-                st.error("❌ Failed to submit your ticket. Please try again.")
+            ticket_response = submit_support_ticket(user_name, user_email, issue_summary, issue_description)
+            st.success(ticket_response)
+            st.session_state.ticket_mode = False
 
